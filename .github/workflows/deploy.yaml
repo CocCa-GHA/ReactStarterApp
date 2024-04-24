@@ -91,7 +91,7 @@ jobs:
         env:
           DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
         run: |
-          echo "Default Domain: $DefaultDomain"   
+          echo "Default Domain: $DefaultDomain"
 
   PullRequestCreation:
     needs: DeployToTest 
@@ -101,20 +101,17 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Update bre
-      run: brew update && brew upgrade hub
       
     - name: Create pull request
       uses: devops-infra/action-pull-request@v0.5.5
-      
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.GH_PR_TOKEN }}
         title: Automatic pull request
         source_branch: develop
-        target_branch: master
+        target_branch: master           
 
   DeployToProd:
-      needs: DeployToTest 
+      needs: PullRequestCreation 
       name: Deploy to Amplify Console with CloudFormation in Prod Environment
       runs-on: ubuntu-latest
       environment: Prod-IAD
@@ -149,4 +146,4 @@ jobs:
         env:
           DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
         run: |
-          echo "Default Domain: $DefaultDomain"              
+          echo "Default Domain: $DefaultDomain"  
