@@ -21,6 +21,8 @@ jobs:
   # Deploy the React app to AWS Amplify Console.
   # This job will run on every code change to the master branch, but will only deploy
   # changes if the infrastructure CloudFormation template in the repository changes.
+  # This job will run on every code change to the master branch, but will only deploy
+  # changes if the infrastructure CloudFormation template in the repository changes.
   amplify:
     name: Deploy to Amplify Console
     runs-on: ubuntu-latest
