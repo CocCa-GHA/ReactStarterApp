@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - develop
-      - 'feature-**'
 
 jobs:
   # Deploy the React app to AWS Amplify Console.
