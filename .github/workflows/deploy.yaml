@@ -9,12 +9,6 @@
 
 name: Deploy
 
-on:
-  push:
-    branches: ['**']
-  pull_request:
-    branches: ['**']
-
 jobs:
   # Deploy the React app to AWS Amplify Console.
   # This job will run on every code change to the master branch, but will only deploy
