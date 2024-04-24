@@ -109,7 +109,7 @@ jobs:
         additional-denied-words: ''
 
   DeployToProd:
-      needs: ManualApproval 
+      needs: DeployToTest 
       name: Deploy to Amplify Console with CloudFormation in Prod Environment
       runs-on: ubuntu-latest
       environment: Prod-IAD
