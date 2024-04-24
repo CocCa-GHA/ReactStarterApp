@@ -103,6 +103,8 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         title: Automatic pull request
+        source_branch: develop
+        target_branch: master
 
   DeployToProd:
       needs: DeployToTest 
