@@ -94,19 +94,15 @@ jobs:
         run: |
           echo "Default Domain: $DefaultDomain"   
 
-  ManualApproval:
+  PullRequestCreation:
     needs: DeployToTest 
     runs-on: ubuntu-latest
     steps:
-    - uses: trstringer/manual-approval@v1
+    - name: Create pull request
+      uses: devops-infra/action-pull-request@v0.5.5
       with:
-        approvers: branch-busters
-        minimum-approvals: 1
-        issue-title: "Deploying v1.3.5 to prod from staging"
-        issue-body: "Please approve or deny the deployment of version v1.3.5."
-        exclude-workflow-initiator-as-approver: false
-        additional-approved-words: ''
-        additional-denied-words: ''
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        title: Automatic pull request
 
   DeployToProd:
       needs: DeployToTest 
