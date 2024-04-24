@@ -56,9 +56,9 @@ jobs:
       environment: Dev-IAD
       steps:
       - name: Deploy to Amplify 
-      - id: amplify-stack
-      - uses: aws-actions/aws-cloudformation-github-deploy@v1
-      - with:
+        id: amplify-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
           name: ${{ vars.AMPLIFYAPPNAME }}
           template: stack.yaml
           no-fail-on-empty-changeset: "1"
