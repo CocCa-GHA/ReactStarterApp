@@ -164,20 +164,12 @@ jobs:
         with:
           script: |
             const pullRequestNumber = ${{ steps.create-pr.outputs.pull_request_number }}
-            const expectedTitle = `Pull request ${{ github.run_number }}`
-            const pull = await github.pulls.get({
+            return github.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pullRequestNumber
             })
-            
-            if (pull.data.merged && pull.data.title.includes(expectedTitle)) {
-              console.log(`Pull Request #${pullRequestNumber} is merged with the expected title`)
-              return true
-            } else {
-              console.log(`Pull Request #${pullRequestNumber} is not merged or does not have the expected title`)
-              return false
-            }
+      - run: echo "${{ steps.check-pr.outputs.result }}"
 
       - name: Create Release
         if: steps.check-pr.outputs.result == 'true'
