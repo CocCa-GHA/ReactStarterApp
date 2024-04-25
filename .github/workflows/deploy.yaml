@@ -51,7 +51,7 @@ jobs:
         env:
           DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
         run: |
-          echo "Default Domain is: $DefaultDomain"
+          echo "Default Domain : $DefaultDomain"
 
   DeployToTest:
       needs: DeployToDev
