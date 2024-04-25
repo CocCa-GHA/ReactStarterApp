@@ -8,59 +8,144 @@
 # fully configure it.
 
 name: Deploy
-
+on:
+  push:
+    branches:
+      - develop
 jobs:
   # Deploy the React app to AWS Amplify Console.
   # This job will run on every code change to the master branch, but will only deploy
   # changes if the infrastructure CloudFormation template in the repository changes.
-  amplify:
-    name: Deploy to Amplify Console
-    runs-on: ubuntu-latest
-    outputs:
-      env-name: ${{ steps.env-name.outputs.environment }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+  DeployToDev:
+      name: Deploy to Amplify Console with CloudFormation in Develop Environment
+      runs-on: ubuntu-latest
+      environment: Dev-IAD
+      steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Setup Node.js 16
-      uses: actions/setup-node@v3
-      with:
-        node-version: 16
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Configure AWS credentials
-      id: creds
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-
-    - name: Configure environment name
-      id: env-name
-      env:
-        REPO: ${{ github.repository }}
-      run: |
-        ENVIRONMENT=`echo $REPO | tr "/" "-"`
-        echo "Environment name: $ENVIRONMENT"
-        echo "::set-output name=environment::$ENVIRONMENT"
-
-    - name: Deploy to Amplify Console with CloudFormation
-      id: amplify-stack
-      uses: aws-actions/aws-cloudformation-github-deploy@v1
-      with:
-        name: ${{ steps.env-name.outputs.environment }}
-        template: stack.yaml
-        no-fail-on-empty-changeset: "1"
-        parameter-overrides: >-
-          Name=${{ steps.env-name.outputs.environment }},
-          Repository=https://github.com/${{ github.repository }},
-          OauthToken=${{ secrets.AMPLIFY_TOKEN }},
-          Domain=${{ secrets.AMPLIFY_DOMAIN }}
+      - name: Deploy to Amplify
+        id: amplify-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ vars.AMPLIFYAPPNAME }}
+          template: stack.yaml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            Name=${{ vars.AMPLIFYAPPNAME }},
+            Repository=https://github.com/${{ github.repository }},
+            OauthToken=${{ secrets.AMPLIFY_TOKEN }},
+            Domain=${{ secrets.AMPLIFY_DOMAIN }}
 
     # When a domain is configured to the stack,
     # it gets configured in the environment and printed to the console.
-    - name: Print default domain
-      env:
-        DefaultDomain: ${{ steps.amplify-stack.outputs.DefaultDomain }}
+      - name: Print default domain
+        env:
+          DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
+        run: |
+          echo "Default Domain is: $DefaultDomain"
+
+  DeployToTest:
+      needs: DeployToDev
+      name: Deploy to Amplify Console with CloudFormation in Test Environment
+      runs-on: ubuntu-latest
+      environment: Test-IAD
+      steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to Amplify
+        id: amplify-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ vars.AMPLIFYAPPNAME }}
+          template: stack.yaml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            Name=${{ vars.AMPLIFYAPPNAME }},
+            Repository=https://github.com/${{ github.repository }},
+            OauthToken=${{ secrets.AMPLIFY_TOKEN }},
+            Domain=${{ secrets.AMPLIFY_DOMAIN }}
+
+    # When a domain is configured to the stack,
+    # it gets configured in the environment and printed to the console.
+      - name: Print default domain
+        env:
+          DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
+        run: |
+          echo "Default Domain: $DefaultDomain"
+
+  PullRequestCreation:
+    needs: DeployToTest
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Create pull request
+      id: create-pr
+      uses: devops-infra/action-pull-request@v0.5.5
+      with:
+        github_token: ${{ secrets.GH_PR_TOKEN }}
+        title: Pull request ${{ github.run_number }}
+        source_branch: develop
+        target_branch: master
+    - name: Get Pull Request Number
+      id: get-pr-number
       run: |
-        echo "Default Domain: $DefaultDomain"
+        echo "pull-request-number=${{ steps.create-pr.outputs.pull_request_number }}" >> $GITHUB_OUTPUT     
+
+  DeployToProd:
+      needs: PullRequestCreation 
+      name: Deploy to Amplify Console with CloudFormation in Prod Environment
+      runs-on: ubuntu-latest
+      environment: Prod-IAD
+      steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to Amplify
+        id: amplify-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ vars.AMPLIFYAPPNAME }}
+          template: stack.yaml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            Name=${{ vars.AMPLIFYAPPNAME }},
+            Repository=https://github.com/${{ github.repository }},
+            OauthToken=${{ secrets.AMPLIFY_TOKEN }},
+            Domain=${{ secrets.AMPLIFY_DOMAIN }}
+
+    # When a domain is configured to the stack,
+    # it gets configured in the environment and printed to the console.
+      - name: Print default domain
+        env:
+          DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
+        run: |
+          echo "Default Domain: $DefaultDomain"     
