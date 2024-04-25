@@ -162,7 +162,7 @@ jobs:
           const pullRequestNumber = context.payload.pull_request.number
           const expectedTitle = `Pull request ${{ github.run_number }}`
           const pull = context.payload.pull_request
-          if (pull.merged pull.title.includes(expectedTitle)) {
+          if (pull.merged && pull.title.includes(expectedTitle)) {
             console.log(`Pull Request #${pullRequestNumber} is merged`)
             return true
           } else {
