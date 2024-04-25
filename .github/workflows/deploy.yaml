@@ -89,7 +89,7 @@ jobs:
         env:
           DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
         run: |
-          echo "Default Domain: $DefaultDomain"
+          echo "Default Domain is: $DefaultDomain"
 
   PullRequestCreation:
     needs: DeployToTest
