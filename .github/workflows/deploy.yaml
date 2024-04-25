@@ -102,12 +102,17 @@ jobs:
       with:
         fetch-depth: 0
     - name: Create pull request
+      id: create-pr
       uses: devops-infra/action-pull-request@v0.5.5
       with:
         github_token: ${{ secrets.GH_PR_TOKEN }}
         title: Pull request ${{ github.run_number }}
         source_branch: develop
-        target_branch: master           
+        target_branch: master
+    - name: Get Pull Request Number
+      id: get-pr-number
+      run: |
+        echo "pull-request-number=${{ steps.create-pr.outputs.pull_request_number }}" >> $GITHUB_OUTPUT     
 
   DeployToProd:
       needs: PullRequestCreation 
@@ -147,34 +152,38 @@ jobs:
         run: |
           echo "Default Domain: $DefaultDomain"
 
-  check_merge:
+  CheckMergeAndCreateRelease:
     runs-on: ubuntu-latest
-    needs: DeployToProd 
+    needs: [DeployToProd, PullRequestCreation]
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      
-    - name: Check if PR is merged
-      uses: actions/github-script@v4
-      id: check-pr
-      with:
-        script: |
-          const pullRequestNumber = context.payload.pull_request.number
-          const expectedTitle = `Pull request ${{ github.run_number }}`
-          const pull = context.payload.pull_request
-          if (pull.merged && pull.title.includes(expectedTitle)) {
-            console.log(`Pull Request #${pullRequestNumber} is merged`)
-            return true
-          } else {
-            console.log(`Pull Request #${pullRequestNumber} is not merged`)
-            return false
-          }
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Check if PR is merged
+        uses: actions/github-script@v4
+        id: check-pr
+        with:
+          script: |
+            const pullRequestNumber = ${{ needs.PullRequestCreation.outputs.pull-request-number }}
+            const expectedTitle = `Pull request ${{ github.run_number }}`
+            const pull = await github.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullRequestNumber
+            })
+            
+            if (pull.data.merged && pull.data.title.includes(expectedTitle)) {
+              console.log(`Pull Request #${pullRequestNumber} is merged with the expected title`)
+              return true
+            } else {
+              console.log(`Pull Request #${pullRequestNumber} is not merged or does not have the expected title`)
+              return false
+            }
 
-    - name: Create Release
-      if: steps.check-pr.outputs.result == 'true'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_PR_TOKEN }}
-      with:
-        tag_name: ${{ github.run_number }}
-        release_name: Release v${{ github.run_number }}        
+      - name: Create Release
+        if: steps.check-pr.outputs.result == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PR_TOKEN }}
+        with:
+          tag_name: ${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}        
