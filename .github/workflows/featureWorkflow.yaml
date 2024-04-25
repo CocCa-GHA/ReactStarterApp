@@ -1,0 +1,122 @@
+# This GitHub Actions workflow runs on every code change and configures the
+# React app in the AWS Amplify Console using Node.js 16.
+#
+# First, the GitHub Action deploys the 'stack.yaml' AWS CloudFormation stack
+# to your AWS Account. This stack configures the React app in the AWS Amplify Console.
+#
+# Then, you need to trigger a first build in the AWS Amplify Console to
+# fully configure it.
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - 'feature*'
+
+jobs:
+  # Deploy the React app to AWS Amplify Console.
+  # This job will run on every code change to the master branch, but will only deploy
+  # changes if the infrastructure CloudFormation template in the repository changes.
+  DeployToDev:
+    name: Deploy to Amplify Console with CloudFormation in Develop Environment
+    runs-on: ubuntu-latest
+    environment: Dev-IAD
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to Amplify
+        id: amplify-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ vars.AMPLIFYAPPNAME }}
+          template: stack.yaml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            Name=${{ vars.AMPLIFYAPPNAME }},
+            Repository=https://github.com/${{ github.repository }},
+            OauthToken=${{ secrets.AMPLIFY_TOKEN }},
+            Domain=${{ secrets.AMPLIFY_DOMAIN }}
+
+      # When a domain is configured to the stack,
+      # it gets configured in the environment and printed to the console.
+      - name: Print default domain
+        env:
+          DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
+        run: |
+          echo "Default Domain: $DefaultDomain"
+
+  DeployToTest:
+    needs: DeployToDev
+    name: Deploy to Amplify Console with CloudFormation in Test Environment
+    runs-on: ubuntu-latest
+    environment: Test-IAD
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to Amplify
+        id: amplify-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ vars.AMPLIFYAPPNAME }}
+          template: stack.yaml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            Name=${{ vars.AMPLIFYAPPNAME }},
+            Repository=https://github.com/${{ github.repository }},
+            OauthToken=${{ secrets.AMPLIFY_TOKEN }},
+            Domain=${{ secrets.AMPLIFY_DOMAIN }}
+
+      # When a domain is configured to the stack,
+      # it gets configured in the environment and printed to the console.
+      - name: Print default domain
+        env:
+          DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
+        run: |
+          echo "Default Domain: $DefaultDomain"
+
+  PullRequestCreation:
+    needs: DeployToTest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Update bre
+        run: brew update && brew upgrade hub
+
+      - name: Create pull request
+        uses: devops-infra/action-pull-request@v0.5.5
+
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          title: Automatic pull request
+          source_branch: develop
+          target_branch: master
+
+       # When a domain is configured to the stack,
+      # it gets configured in the environment and printed to the console.
+      - name: Print default domain
+        env:
+          DefaultDomain: ${{ vars.AMPLIFYAPPNAME }}
+        run: |
+          echo "Default Domain: $DefaultDomain"
