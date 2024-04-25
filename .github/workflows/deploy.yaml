@@ -160,14 +160,15 @@ jobs:
         uses: actions/checkout@v2
       - name: Check if PR is merged
         uses: actions/github-script@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PR_TOKEN }}
         id: check-pr
         with:
           script: |
-            const pullRequestNumber = ${{ steps.create-pr.outputs.pull_request_number }}
             return github.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: pullRequestNumber
+              pull_number: ${{ steps.create-pr.outputs.pull_request_number }}
             })
       - run: echo "${{ steps.check-pr.outputs.result }}"
 
